@@ -1,4 +1,4 @@
-'''
+"""
     This file is part of PM4Py (More Info: https://pm4py.fit.fraunhofer.de).
 
     PM4Py is free software: you can redistribute it and/or modify
@@ -13,14 +13,16 @@
 
     You should have received a copy of the GNU General Public License
     along with PM4Py.  If not, see <https://www.gnu.org/licenses/>.
-'''
+"""
 import sys
 from copy import deepcopy, copy
 from enum import Enum
 from typing import Optional, Dict, Any, Union, Tuple
 
 from pm4py.algo.conformance.alignments.petri_net import algorithm as ali
-from pm4py.algo.conformance.alignments.petri_net.variants import state_equation_a_star as star
+from pm4py.algo.conformance.alignments.petri_net.variants import (
+    state_equation_a_star as star,
+)
 from pm4py.algo.conformance.tokenreplay import algorithm as token_replay
 from pm4py.objects.conversion.log import converter as log_converter
 from pm4py.objects.log.obj import EventLog
@@ -39,8 +41,12 @@ class Parameters(Enum):
     LABELS = "labels"
 
 
-def create_data_petri_nets_with_decisions(log: Union[EventLog, pd.DataFrame], net: PetriNet, initial_marking: Marking,
-                                          final_marking: Marking) -> Tuple[PetriNet, Marking, Marking]:
+def create_data_petri_nets_with_decisions(
+    log: Union[EventLog, pd.DataFrame],
+    net: PetriNet,
+    initial_marking: Marking,
+    final_marking: Marking,
+) -> Tuple[PetriNet, Marking, Marking]:
     """
     Given a Petri net, create a data Petri net with the decisions given for each place by the decision
     mining algorithm
@@ -69,9 +75,14 @@ def create_data_petri_nets_with_decisions(log: Union[EventLog, pd.DataFrame], ne
     all_variables = {}
     for place in net.places:
         try:
-            clf, columns, targets = get_decision_tree(log, net, initial_marking, final_marking,
-                                                      decision_point=place.name,
-                                                      parameters={"labels": False})
+            clf, columns, targets = get_decision_tree(
+                log,
+                net,
+                initial_marking,
+                final_marking,
+                decision_point=place.name,
+                parameters={"labels": False},
+            )
             target_classes, variables = dt_to_string.apply(clf, columns)
             target_classes = {targets[int(k)]: v for k, v in target_classes.items()}
             variables = {targets[int(k)]: v for k, v in variables.items()}
@@ -88,9 +99,15 @@ def create_data_petri_nets_with_decisions(log: Union[EventLog, pd.DataFrame], ne
     return net, initial_marking, final_marking
 
 
-def get_decision_tree(log: Union[EventLog, pd.DataFrame], net: PetriNet, initial_marking: Marking, final_marking: Marking,
-                      decision_point=None, attributes=None,
-                      parameters: Optional[Dict[Union[str, Parameters], Any]] = None) -> Any:
+def get_decision_tree(
+    log: Union[EventLog, pd.DataFrame],
+    net: PetriNet,
+    initial_marking: Marking,
+    final_marking: Marking,
+    decision_point=None,
+    attributes=None,
+    parameters: Optional[Dict[Union[str, Parameters], Any]] = None,
+) -> Any:
     """
     Gets a decision tree classifier on a specific point of the model
 
@@ -128,15 +145,29 @@ def get_decision_tree(log: Union[EventLog, pd.DataFrame], net: PetriNet, initial
     if parameters is None:
         parameters = {}
 
-    X, y, targets = apply(log, net, initial_marking, final_marking, decision_point=decision_point,
-                          attributes=attributes, parameters=parameters)
+    X, y, targets = apply(
+        log,
+        net,
+        initial_marking,
+        final_marking,
+        decision_point=decision_point,
+        attributes=attributes,
+        parameters=parameters,
+    )
     dt = tree.DecisionTreeClassifier()
     dt = dt.fit(X, y)
     return dt, list(X.columns.values.tolist()), targets
 
 
-def apply(log: Union[EventLog, pd.DataFrame], net: PetriNet, initial_marking: Marking, final_marking: Marking, decision_point=None,
-          attributes=None, parameters: Optional[Dict[Union[str, Parameters], Any]] = None) -> Any:
+def apply(
+    log: Union[EventLog, pd.DataFrame],
+    net: PetriNet,
+    initial_marking: Marking,
+    final_marking: Marking,
+    decision_point=None,
+    attributes=None,
+    parameters: Optional[Dict[Union[str, Parameters], Any]] = None,
+) -> Any:
     """
     Gets the essential information (features, target class and names of the target class)
     in order to learn a classifier
@@ -177,16 +208,34 @@ def apply(log: Union[EventLog, pd.DataFrame], net: PetriNet, initial_marking: Ma
 
     labels = exec_utils.get_param_value(Parameters.LABELS, parameters, True)
 
-    activity_key = exec_utils.get_param_value(Parameters.ACTIVITY_KEY, parameters, xes_constants.DEFAULT_NAME_KEY)
+    activity_key = exec_utils.get_param_value(
+        Parameters.ACTIVITY_KEY, parameters, xes_constants.DEFAULT_NAME_KEY
+    )
     if decision_point is None:
-        decision_points_names = get_decision_points(net, labels=labels, parameters=parameters)
-        raise Exception("please provide decision_point as argument of the method. Possible decision points: ",
-                        decision_points_names)
+        decision_points_names = get_decision_points(
+            net, labels=labels, parameters=parameters
+        )
+        raise Exception(
+            "please provide decision_point as argument of the method. Possible decision points: ",
+            decision_points_names,
+        )
     if attributes is None:
-        str_tr_attr, str_ev_attr, num_tr_attr, num_ev_attr = select_attributes_from_log_for_tree(log)
+        (
+            str_tr_attr,
+            str_ev_attr,
+            num_tr_attr,
+            num_ev_attr,
+        ) = select_attributes_from_log_for_tree(log)
         attributes = list(str_ev_attr) + list(num_ev_attr)
-    I, dp = get_decisions_table(log, net, initial_marking, final_marking, attributes=attributes,
-                                pre_decision_points=[decision_point], parameters=parameters)
+    I, dp = get_decisions_table(
+        log,
+        net,
+        initial_marking,
+        final_marking,
+        attributes=attributes,
+        pre_decision_points=[decision_point],
+        parameters=parameters,
+    )
     x_attributes = [a for a in attributes if not a == activity_key]
     str_attributes = set()
     non_str_attributes = set()
@@ -200,21 +249,36 @@ def apply(log: Union[EventLog, pd.DataFrame], net: PetriNet, initial_marking: Ma
                     str_attributes.add(a)
                 else:
                     non_str_attributes.add(a)
-        x.append({a: v for a, v in el[0].items() if a in x_attributes and type(v) is str})
-        x2.append({a: v for a, v in el[0].items() if a in x_attributes and type(v) is not str})
+        x.append(
+            {a: v for a, v in el[0].items() if a in x_attributes and type(v) is str}
+        )
+        x2.append(
+            {a: v for a, v in el[0].items() if a in x_attributes and type(v) is not str}
+        )
         y.append(el[1])
     X = pd.DataFrame(x)
-    X = pd.get_dummies(data=X, columns=list(str_attributes))
+    if not X.empty:
+        X = pd.get_dummies(data=X, columns=list(str_attributes))
     X2 = pd.DataFrame(x2)
     X = pd.concat([X, X2], axis=1)
     Y = pd.DataFrame(y, columns=["Name"])
     Y, targets = encode_target(Y, "Name")
-    y = Y['Target']
+    y = Y["Target"]
     return X, y, targets
 
 
-def get_decisions_table(log0, net, initial_marking, final_marking, attributes=None, use_trace_attributes=False, k=1,
-                        pre_decision_points=None, trace_attributes=None, parameters=None):
+def get_decisions_table(
+    log0,
+    net,
+    initial_marking,
+    final_marking,
+    attributes=None,
+    use_trace_attributes=False,
+    k=1,
+    pre_decision_points=None,
+    trace_attributes=None,
+    parameters=None,
+):
     """
     Gets a decision table out of a log and an accepting Petri net
 
@@ -257,41 +321,63 @@ def get_decisions_table(log0, net, initial_marking, final_marking, attributes=No
     labels = exec_utils.get_param_value(Parameters.LABELS, parameters, True)
 
     log = deepcopy(log0)
-    log = log_converter.apply(log, variant=log_converter.Variants.TO_EVENT_LOG, parameters=parameters)
+    log = log_converter.apply(
+        log, variant=log_converter.Variants.TO_EVENT_LOG, parameters=parameters
+    )
 
     if pre_decision_points != None:
         if not isinstance(pre_decision_points, list):
             print(
-                "Error: The parameter pre_decision_points has to be a list of names of the places that have to be considered.")
+                "Error: The parameter pre_decision_points has to be a list of names of the places that have to be considered."
+            )
             sys.exit()
         if len(pre_decision_points) == 0:
-            print("Error: There must be at least one element in the list of pre_decision_points.")
+            print(
+                "Error: There must be at least one element in the list of pre_decision_points."
+            )
             sys.exit()
     if attributes != None:
         if not isinstance(attributes, list):
             print(
-                "Error: The parameter attributes has to be a list of names of event attributes that have to be considered.")
+                "Error: The parameter attributes has to be a list of names of event attributes that have to be considered."
+            )
             sys.exit()
         if len(attributes) == 0:
-            print("Error: There must be at least one element in the list of attributes.")
+            print(
+                "Error: There must be at least one element in the list of attributes."
+            )
             sys.exit()
-    if use_trace_attributes == False and trace_attributes != None and isinstance(trace_attributes, list):
+    if (
+        use_trace_attributes == False
+        and trace_attributes != None
+        and isinstance(trace_attributes, list)
+    ):
         print(
-            "Note: Since a list of considerable trace attributes is provided, and use_trace_attributes was set on False, we set it on True")
+            "Note: Since a list of considerable trace attributes is provided, and use_trace_attributes was set on False, we set it on True"
+        )
         use_trace_attributes = True
     if trace_attributes != None:
         if not isinstance(trace_attributes, list):
             print(
-                "Error: The parameter trace_attributes has to be a list of names of trace attributes that have to be considered.")
+                "Error: The parameter trace_attributes has to be a list of names of trace attributes that have to be considered."
+            )
             sys.exit()
         if len(trace_attributes) == 0:
-            print("Error: There must be at least one element in the list of trace_attributes.")
+            print(
+                "Error: There must be at least one element in the list of trace_attributes."
+            )
             sys.exit()
 
     # alignment = ali.apply(log, net, initial_marking, final_marking, variant=True, parameters={star.PARAM_ALIGNMENT_RESULT_IS_SYNC_PROD_AWARE:True})
-    decision_points = get_decision_points(net, pre_decision_points=pre_decision_points, parameters=parameters)
-    decision_points_names = get_decision_points(net, labels=labels, pre_decision_points=pre_decision_points,
-                                                parameters=parameters)
+    decision_points = get_decision_points(
+        net, pre_decision_points=pre_decision_points, parameters=parameters
+    )
+    decision_points_names = get_decision_points(
+        net,
+        labels=labels,
+        pre_decision_points=pre_decision_points,
+        parameters=parameters,
+    )
     if use_trace_attributes:
         # Made to ensure distinguishness between event and trace attributes.
         log = prepare_event_log(log)
@@ -312,9 +398,19 @@ def get_decisions_table(log0, net, initial_marking, final_marking, attributes=No
             for event in trace:
                 attributes += list(event.keys())
     attributes = list(set(attributes))
-    I = get_attributes(log, decision_points,
-                       attributes, use_trace_attributes, trace_attributes,
-                       k, net, initial_marking, final_marking, decision_points_names, parameters=parameters)
+    I = get_attributes(
+        log,
+        decision_points,
+        attributes,
+        use_trace_attributes,
+        trace_attributes,
+        k,
+        net,
+        initial_marking,
+        final_marking,
+        decision_points_names,
+        parameters=parameters,
+    )
     return (I, decision_points)
 
 
@@ -385,25 +481,37 @@ def get_decision_points(net, labels=False, pre_decision_points=None, parameters=
             # sys.exit()
         else:
             print(
-                "Not all of the given places were identified as decision points. However, we only take the correct decision points from your list into account.")
+                "Not all of the given places were identified as decision points. However, we only take the correct decision points from your list into account."
+            )
     return decision_points
 
 
 def simplify_token_replay(replay):
     variant = {}
     for element in replay:
-        if tuple(element['activated_transitions']) not in variant:
-            variant[tuple(element['activated_transitions'])] = True
+        if tuple(element["activated_transitions"]) not in variant:
+            variant[tuple(element["activated_transitions"])] = True
     smaller_replay = []
     for element in replay:
-        if variant[tuple(element['activated_transitions'])]:
+        if variant[tuple(element["activated_transitions"])]:
             smaller_replay.append(element)
-            variant[tuple(element['activated_transitions'])] = False
+            variant[tuple(element["activated_transitions"])] = False
     return smaller_replay
 
 
-def get_attributes(log, decision_points, attributes, use_trace_attributes, trace_attributes, k, net, initial_marking,
-                   final_marking, decision_points_names, parameters=None):
+def get_attributes(
+    log,
+    decision_points,
+    attributes,
+    use_trace_attributes,
+    trace_attributes,
+    k,
+    net,
+    initial_marking,
+    final_marking,
+    decision_points_names,
+    parameters=None,
+):
     """
     This method aims to construct for each decision place a table where for each decision place a list if given with the
      label of the later decision and as value the given attributes
@@ -430,16 +538,20 @@ def get_attributes(log, decision_points, attributes, use_trace_attributes, trace
         A[attri] = None
     i = 0
     # first, take a look at the variants
-    variants_idxs = variants_module.get_variants_from_log_trace_idx(log, parameters=parameters)
+    variants_idxs = variants_module.get_variants_from_log_trace_idx(
+        log, parameters=parameters
+    )
     one_variant = []
     for variant in variants_idxs:
         one_variant.append(variant)
         # TODO: Token based replay code mit paramter für nur varianten einbeziehen ausstatten
-    replay_result = token_replay.apply(log, net, initial_marking, final_marking, parameters=parameters)
+    replay_result = token_replay.apply(
+        log, net, initial_marking, final_marking, parameters=parameters
+    )
     replay_result = simplify_token_replay(replay_result)
     count = 0
     for variant in replay_result:
-        if variant['trace_fitness'] == 1.0:
+        if variant["trace_fitness"] == 1.0:
             for trace_index in variants_idxs[one_variant[count]]:
                 last_k_list = [None] * k
                 trace = log[trace_index]
@@ -449,7 +561,7 @@ def get_attributes(log, decision_points, attributes, use_trace_attributes, trace
                         A[attribute] = trace.attributes[attribute]
                 j = 0
                 # j is a pointer which points to the current event inside a trace
-                for transition in variant['activated_transitions']:
+                for transition in variant["activated_transitions"]:
                     for key, value in decision_points_names.items():
                         tr_to_str = transition.label if labels else transition.name
                         if tr_to_str in value:
@@ -471,9 +583,16 @@ def get_attributes(log, decision_points, attributes, use_trace_attributes, trace
         else:
             example_trace = log[variants_idxs[one_variant[count]][0]]
             align_parameters = copy(parameters)
-            align_parameters[star.Parameters.PARAM_ALIGNMENT_RESULT_IS_SYNC_PROD_AWARE] = True
-            alignment = ali.apply(example_trace, net, initial_marking, final_marking,
-                                  parameters=align_parameters)['alignment']
+            align_parameters[
+                star.Parameters.PARAM_ALIGNMENT_RESULT_IS_SYNC_PROD_AWARE
+            ] = True
+            alignment = ali.apply(
+                example_trace,
+                net,
+                initial_marking,
+                final_marking,
+                parameters=align_parameters,
+            )["alignment"]
             for trace_index in variants_idxs[one_variant[count]]:
                 last_k_list = [None] * k
                 trace = log[trace_index]
@@ -483,7 +602,7 @@ def get_attributes(log, decision_points, attributes, use_trace_attributes, trace
                         A[attribute] = trace.attributes[attribute]
                 j = 0
                 for el in alignment:
-                    if el[1][1] != '>>':
+                    if el[1][1] != ">>":
                         # If move in model
                         for key, value in decision_points.items():
                             if el[0][1] in value:
@@ -495,7 +614,7 @@ def get_attributes(log, decision_points, attributes, use_trace_attributes, trace
                                             I[key].append((element.copy(), el[0][1]))
                                         else:
                                             I[key].append((element.copy(), el[1][1]))
-                    if el[1][0] != '>>' and el[1][1] != '>>':
+                    if el[1][0] != ">>" and el[1][1] != ">>":
                         # If there is a move in log and model
                         for attri in attributes:
                             if attri in trace[j]:
@@ -503,7 +622,7 @@ def get_attributes(log, decision_points, attributes, use_trace_attributes, trace
                                 A[attri] = trace[j][attri]
                         # add A to last_k_list. Using modulo to access correct entry
                         last_k_list[j % k] = A.copy()
-                    if el[1][0] != '>>':
+                    if el[1][0] != ">>":
                         # only go to next event in trace if the current event has been aligned
                         # TODO: Discuss if this is correct or can lead to problems
                         j += 1
